@@ -1,0 +1,52 @@
+{
+  "entries": [
+    {
+      "name": "Korea 2000 / West Belt 2010",
+      "epsg": 5185,
+      "adskCodes": ["Korea2000.WestBelt-2010", "KGD2002.WestBelt-2010", "Korea2000/WestBelt2010", "KOREA2000-W-2010"],
+      "esriWkt": "PROJCS[\"Korea_2000_Korea_West_Belt_2010\",GEOGCS[\"GCS_Korea_2000\",DATUM[\"D_Korea_2000\",SPHEROID[\"GRS_1980\",6378137.0,298.257222101]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",200000.0],PARAMETER[\"False_Northing\",600000.0],PARAMETER[\"Central_Meridian\",125.0],PARAMETER[\"Scale_Factor\",1.0],PARAMETER[\"Latitude_Of_Origin\",38.0],UNIT[\"Meter\",1.0]]"
+    },
+    {
+      "name": "Korea 2000 / Central Belt 2010",
+      "epsg": 5186,
+      "adskCodes": ["Korea2000.CentralBelt-2010", "KGD2002.CentralBelt-2010", "Korea2000/CentralBelt2010", "KOREA2000-C-2010"],
+      "esriWkt": "PROJCS[\"Korea_2000_Korea_Central_Belt_2010\",GEOGCS[\"GCS_Korea_2000\",DATUM[\"D_Korea_2000\",SPHEROID[\"GRS_1980\",6378137.0,298.257222101]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",200000.0],PARAMETER[\"False_Northing\",600000.0],PARAMETER[\"Central_Meridian\",127.0],PARAMETER[\"Scale_Factor\",1.0],PARAMETER[\"Latitude_Of_Origin\",38.0],UNIT[\"Meter\",1.0]]"
+    },
+    {
+      "name": "Korea 2000 / East Belt 2010",
+      "epsg": 5187,
+      "adskCodes": ["Korea2000.EastBelt-2010", "KGD2002.EastBelt-2010", "Korea2000/EastBelt2010", "KOREA2000-E-2010"],
+      "esriWkt": "PROJCS[\"Korea_2000_Korea_East_Belt_2010\",GEOGCS[\"GCS_Korea_2000\",DATUM[\"D_Korea_2000\",SPHEROID[\"GRS_1980\",6378137.0,298.257222101]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",200000.0],PARAMETER[\"False_Northing\",600000.0],PARAMETER[\"Central_Meridian\",129.0],PARAMETER[\"Scale_Factor\",1.0],PARAMETER[\"Latitude_Of_Origin\",38.0],UNIT[\"Meter\",1.0]]"
+    },
+    {
+      "name": "Korea 2000 / East Sea Belt 2010",
+      "epsg": 5188,
+      "adskCodes": ["Korea2000.EastSeaBelt-2010", "KGD2002.EastSeaBelt-2010", "Korea2000/EastSeaBelt2010", "KOREA2000-ES-2010"],
+      "esriWkt": "PROJCS[\"Korea_2000_Korea_East_Sea_Belt_2010\",GEOGCS[\"GCS_Korea_2000\",DATUM[\"D_Korea_2000\",SPHEROID[\"GRS_1980\",6378137.0,298.257222101]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",200000.0],PARAMETER[\"False_Northing\",600000.0],PARAMETER[\"Central_Meridian\",131.0],PARAMETER[\"Scale_Factor\",1.0],PARAMETER[\"Latitude_Of_Origin\",38.0],UNIT[\"Meter\",1.0]]"
+    },
+    {
+      "name": "Korea 2000 / Unified CS (UTM-K)",
+      "epsg": 5179,
+      "adskCodes": ["Korea2000.UnifiedCS", "KGD2002.UnifiedCS", "UTM-K", "UTMK"],
+      "esriWkt": "PROJCS[\"Korea_2000_Korea_Unified_Coordinate_System\",GEOGCS[\"GCS_Korea_2000\",DATUM[\"D_Korea_2000\",SPHEROID[\"GRS_1980\",6378137.0,298.257222101]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",1000000.0],PARAMETER[\"False_Northing\",2000000.0],PARAMETER[\"Central_Meridian\",127.5],PARAMETER[\"Scale_Factor\",0.9996],PARAMETER[\"Latitude_Of_Origin\",38.0],UNIT[\"Meter\",1.0]]"
+    },
+    {
+      "name": "Korean 1985 / Modified Central Belt",
+      "epsg": 5174,
+      "adskCodes": ["Korean1985.ModifiedCentralBelt", "KOREA-C-MOD", "Korea1985/ModifiedCentral"],
+      "esriWkt": "PROJCS[\"Korean_1985_Modified_Korea_Central_Belt\",GEOGCS[\"GCS_Korean_Datum_1985\",DATUM[\"D_Korean_Datum_1985\",SPHEROID[\"Bessel_1841\",6377397.155,299.1528128]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",200000.0],PARAMETER[\"False_Northing\",500000.0],PARAMETER[\"Central_Meridian\",127.0028902777778],PARAMETER[\"Scale_Factor\",1.0],PARAMETER[\"Latitude_Of_Origin\",38.0],UNIT[\"Meter\",1.0]]"
+    },
+    {
+      "name": "WGS 84 / UTM zone 52N",
+      "epsg": 32652,
+      "adskCodes": ["UTM84-52N", "WGS84.UTM-52N"],
+      "esriWkt": "PROJCS[\"WGS_1984_UTM_Zone_52N\",GEOGCS[\"GCS_WGS_1984\",DATUM[\"D_WGS_1984\",SPHEROID[\"WGS_1984\",6378137.0,298.257223563]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",500000.0],PARAMETER[\"False_Northing\",0.0],PARAMETER[\"Central_Meridian\",129.0],PARAMETER[\"Scale_Factor\",0.9996],PARAMETER[\"Latitude_Of_Origin\",0.0],UNIT[\"Meter\",1.0]]"
+    },
+    {
+      "name": "WGS 84 (geographic)",
+      "epsg": 4326,
+      "adskCodes": ["LL84", "WGS84.LL", "LL-WGS84"],
+      "esriWkt": "GEOGCS[\"GCS_WGS_1984\",DATUM[\"D_WGS_1984\",SPHEROID[\"WGS_1984\",6378137.0,298.257223563]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]]"
+    }
+  ]
+}

@@ -1,0 +1,114 @@
+<Window x:Class="LayerExporter.UI.ExportDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="레이어 내보내기 (DXF / SHP)"
+        Width="440" Height="560"
+        MinWidth="380" MinHeight="480"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </Window.Resources>
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- 사전 선택 객체 모드 (명령 실행 전 객체를 선택한 경우에만 표시) -->
+        <Border Grid.Row="0" Background="#FFF4E5" CornerRadius="3" Padding="8" Margin="0,0,0,6"
+                Visibility="{Binding HasPreselection, Converter={StaticResource BoolToVis}}">
+            <CheckBox IsChecked="{Binding UsePreselectionOnly}">
+                <TextBlock>
+                    <Run Text="미리 선택한 "/><Run Text="{Binding PreselectionCount, Mode=OneWay}" FontWeight="Bold"/><Run Text="개 객체만 내보내기 (레이어 목록 무시)"/>
+                </TextBlock>
+            </CheckBox>
+        </Border>
+
+        <!-- 필터 + 화면 선택 + 전체선택 -->
+        <DockPanel Grid.Row="1" Margin="0,0,0,6" IsEnabled="{Binding LayerSelectionEnabled}">
+            <CheckBox x:Name="SelectAllCheck" DockPanel.Dock="Right" Content="전체 선택"
+                      VerticalAlignment="Center" Margin="8,0,0,0"
+                      Checked="OnSelectAllChecked" Unchecked="OnSelectAllUnchecked"/>
+            <Button DockPanel.Dock="Right" Content="화면에서 레이어 선택" Padding="8,2" Margin="8,0,0,0"
+                    ToolTip="도면에서 객체를 선택하면 해당 객체가 속한 레이어가 자동으로 체크됩니다"
+                    Click="OnPickLayersFromScreen"/>
+            <TextBox Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
+                     VerticalContentAlignment="Center" Height="26"
+                     ToolTip="레이어 이름 필터"/>
+        </DockPanel>
+
+        <!-- 레이어 목록 -->
+        <ListBox Grid.Row="2" ItemsSource="{Binding LayersView}"
+                 IsEnabled="{Binding LayerSelectionEnabled}"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <CheckBox IsChecked="{Binding IsSelected}" Margin="2">
+                        <TextBlock>
+                            <Run Text="{Binding Name, Mode=OneWay}" FontWeight="SemiBold"/>
+                            <Run Text="{Binding Description, Mode=OneWay}" Foreground="Gray"/>
+                        </TextBlock>
+                    </CheckBox>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <!-- 출력 형식 -->
+        <GroupBox Grid.Row="3" Header="출력 형식" Margin="0,8,0,0">
+            <StackPanel Orientation="Horizontal" Margin="4">
+                <RadioButton Content="DXF" IsChecked="{Binding IsDxf}" Margin="0,0,16,0"/>
+                <RadioButton Content="SHP (Shapefile)" IsChecked="{Binding IsShp}"/>
+            </StackPanel>
+        </GroupBox>
+
+        <!-- 출력 경로 -->
+        <GroupBox Grid.Row="4" Header="출력 위치" Margin="0,8,0,0">
+            <Grid Margin="4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="폴더:" VerticalAlignment="Center" Margin="0,0,6,4"/>
+                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding OutputFolder, UpdateSourceTrigger=PropertyChanged}"
+                         Height="26" VerticalContentAlignment="Center" Margin="0,0,0,4"/>
+                <Button Grid.Row="0" Grid.Column="2" Content="찾아보기..." Padding="8,2" Margin="6,0,0,4"
+                        Click="OnBrowseFolder"/>
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="이름:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2"
+                         Text="{Binding BaseName, UpdateSourceTrigger=PropertyChanged}"
+                         Height="26" VerticalContentAlignment="Center"/>
+            </Grid>
+        </GroupBox>
+
+        <!-- 옵션 (SHP 전용) -->
+        <GroupBox Grid.Row="5" Header="SHP 옵션" Margin="0,8,0,0"
+                  IsEnabled="{Binding IsShp}">
+            <StackPanel Margin="4">
+                <CheckBox Content="닫힌 폴리선을 폴리곤으로 변환" IsChecked="{Binding ClosedPolylinesAsPolygons}" Margin="0,2"/>
+                <CheckBox Content="Z 좌표 포함 (PointZ/PolylineZ)" IsChecked="{Binding IncludeZ}" Margin="0,2"/>
+                <DockPanel Margin="0,2">
+                    <TextBlock Text="곡선 분할 허용오차:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                    <TextBox Text="{Binding Tolerance, UpdateSourceTrigger=PropertyChanged}"
+                             Width="80" Height="24" HorizontalAlignment="Left" VerticalContentAlignment="Center"/>
+                </DockPanel>
+            </StackPanel>
+        </GroupBox>
+
+        <!-- 버튼 -->
+        <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button Content="내보내기" Width="90" Height="28" IsDefault="True" Click="OnExport"/>
+            <Button Content="취소" Width="70" Height="28" IsCancel="True" Margin="8,0,0,0"/>
+        </StackPanel>
+    </Grid>
+</Window>

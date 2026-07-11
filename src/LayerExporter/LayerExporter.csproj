@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <UseWPF>true</UseWPF>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <!-- AutoCAD 인프로세스 로딩: NuGet 의존성은 출력 폴더에 복사, Autodesk DLL은 복사 금지 -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <RootNamespace>LayerExporter</RootNamespace>
+    <AssemblyName>LayerExporter</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LayerExporter.Core\LayerExporter.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="accoremgd">
+      <HintPath>$(AcadRoot)\accoremgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="acdbmgd">
+      <HintPath>$(AcadRoot)\acdbmgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="acmgd">
+      <HintPath>$(AcadRoot)\acmgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="AecBaseMgd">
+      <HintPath>$(AcadRoot)\ACA\AecBaseMgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="AeccDbMgd">
+      <HintPath>$(AcadRoot)\C3D\AeccDbMgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>
