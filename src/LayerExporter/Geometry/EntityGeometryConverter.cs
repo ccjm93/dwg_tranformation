@@ -136,7 +136,7 @@ public static class EntityGeometryConverter
 
         // 허용오차에 비례한 현 길이로 샘플 수 결정 (곡률을 모르므로 보수적으로)
         var chordStep = Math.Max(opt.Tolerance * 20.0, 1e-6);
-        var n = Math.Clamp((int)Math.Ceiling(length / chordStep), 8, 2048);
+        var n = Math.Min(Math.Max((int)Math.Ceiling(length / chordStep), 8), 2048);
 
         var pts = new List<Pt2>(n + 1);
         var zs = opt.IncludeZ ? new List<double>(n + 1) : null;

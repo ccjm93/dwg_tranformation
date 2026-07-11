@@ -16,18 +16,32 @@ Autodesk Civil 3D에서 **선택한 레이어의 객체만 골라 DXF 또는 SHP
 
 ## 지원 버전
 
-| Civil 3D | .NET | 빌드 명령 |
-|---|---|---|
-| 2026 | .NET 8 | `tools\build.ps1 -Civil3DVersion 2026` |
-| 2027 | .NET 10 | `tools\build.ps1 -Civil3DVersion 2027` |
+Civil 3D / AutoCAD **2018 이후 모든 버전**을 지원합니다. AutoCAD 관리(.NET) API는
+아래 밴드 안에서 바이너리 호환이므로 밴드당 1개의 바이너리로 동작합니다.
+
+| Civil 3D / AutoCAD | 시리즈 | .NET | 빌드 명령 |
+|---|---|---|---|
+| 2018 ~ 2024 | R22.0 ~ R24.3 | .NET Framework 4.8 | `tools\build.ps1 -Civil3DVersion 2018` |
+| 2025 ~ 2026 | R25.0 ~ R25.1 | .NET 8 | `tools\build.ps1 -Civil3DVersion 2026` |
+| 2027 | R26.0 | .NET 10 | `tools\build.ps1 -Civil3DVersion 2027` |
+
+- 2018~2024 대상 PC에는 **.NET Framework 4.8** 런타임이 설치되어 있어야 합니다
+  (Windows 10 1903 이후 기본 포함).
+- AutoCAD 참조는 NuGet 패키지(`AutoCAD.NET`)로 받으므로 **빌드 PC에 해당 버전의
+  AutoCAD/Civil 3D가 설치되어 있지 않아도** 됩니다.
+- Civil 3D API(AeccDbMgd)는 리플렉션으로만 접근하므로 Civil 3D가 아닌 순수 AutoCAD에서도
+  동작합니다 (이 경우 도면 좌표계 자동 인식만 비활성화되어 `.prj` 없이 출력).
 
 ## 빌드
 
-.NET SDK 10 필요 (net8/net10 모두 빌드 가능).
+.NET SDK 10 필요 (net48/net8/net10 모두 빌드 가능).
 
 ```powershell
-# 2026용 빌드 + 배포 폴더 복사
-powershell -File tools\build.ps1 -Civil3DVersion 2026
+# 세 밴드(2018–2024 / 2025–2026 / 2027) 전부 빌드 + 배포 폴더 복사
+powershell -File tools\build.ps1 -All
+
+# 특정 버전만 빌드 (2018~2027 아무 값이나 지정하면 해당 밴드로 매핑)
+powershell -File tools\build.ps1 -Civil3DVersion 2020
 
 # 단위 테스트
 dotnet test
@@ -38,7 +52,10 @@ dotnet test
 **방법 1 — NETLOAD (간단)**
 
 1. `tools\build.ps1` 실행 후 Civil 3D에서 `NETLOAD` 명령 실행
-2. `deploy\bin\2026\LayerExporter.dll` 선택
+2. 사용 중인 버전의 밴드 폴더에서 `LayerExporter.dll` 선택
+   - 2018~2024: `deploy\bin\2018\LayerExporter.dll`
+   - 2025~2026: `deploy\bin\2025\LayerExporter.dll`
+   - 2027: `deploy\bin\2027\LayerExporter.dll`
    (또는 `tools\netload.scr` 스크립트 사용)
 
 **방법 2 — 자동 로드 (.bundle)**

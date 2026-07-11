@@ -1,12 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <!-- net48 = Civil 3D/AutoCAD 2018–2024 플러그인용, net8.0 = 2025+ 및 테스트용 -->
+    <TargetFrameworks>net48;net8.0</TargetFrameworks>
     <RootNamespace>LayerExporter.Core</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="NetTopologySuite.IO.Esri.Shapefile" Version="1.2.0" />
+  </ItemGroup>
+
+  <!-- net8.0+에는 System.Text.Json이 내장, net48은 패키지로 공급 -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
   </ItemGroup>
 
   <ItemGroup>

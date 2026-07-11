@@ -79,15 +79,15 @@ public static class ShpWriter
     private static Feature ToNtsFeature(ShpFeature f)
     {
         var table = new AttributesTable();
-        foreach (var (key, value) in f.Attributes)
+        foreach (var pair in f.Attributes)
         {
-            var v = value switch
+            var v = pair.Value switch
             {
                 null => "",
-                string s when s.Length > MaxDbfTextLength => s[..MaxDbfTextLength],
-                _ => value,
+                string s when s.Length > MaxDbfTextLength => s.Substring(0, MaxDbfTextLength),
+                _ => pair.Value,
             };
-            table.Add(key, v);
+            table.Add(pair.Key, v);
         }
 
         return new Feature(f.Geometry, table);

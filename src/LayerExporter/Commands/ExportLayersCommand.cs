@@ -32,43 +32,18 @@ public class ExportLayersCommand
                 return;
             }
 
-            // 명령 실행 전 미리 선택해 둔 객체 (pickfirst)
+            // 명령 실행 전 미리 선택해 둔 객체(pickfirst)를 객체 모드 초기 선택으로 시드한다.
+            // 사전 프롬프트 없이 GUI를 먼저 띄운다.
             var implied = ed.SelectImplied();
             var pickedIds = implied.Status == PromptStatus.OK
                 ? implied.Value.GetObjectIds()
                 : Array.Empty<Autodesk.AutoCAD.DatabaseServices.ObjectId>();
 
-            // 기본 흐름: 사전 선택이 없으면 화면에서 객체를 골라 레이어를 지정하게 한다
-            HashSet<string>? preCheckedLayers = null;
-            if (pickedIds.Length == 0)
-            {
-                var pso = new PromptSelectionOptions
-                {
-                    MessageForAdding = "\n내보낼 레이어의 객체 선택 <Enter = 건너뛰고 목록에서 직접 선택>",
-                };
-                var sel = ed.GetSelection(pso);
-                if (sel.Status == PromptStatus.OK)
-                {
-                    preCheckedLayers = LayerService.GetLayerNames(doc.Database, sel.Value.GetObjectIds());
-                    ed.WriteMessage($"\n[LayerExporter] {preCheckedLayers.Count}개 레이어가 체크됩니다: {string.Join(", ", preCheckedLayers)}\n");
-                }
-                else if (sel.Status == PromptStatus.Cancel)
-                {
-                    ed.WriteMessage("\n[LayerExporter] 취소되었습니다.\n");
-                    return;
-                }
-                // 빈 Enter 등은 건너뛰고 다이얼로그에서 직접 선택
-            }
-
-            var vm = new ExportViewModel(layers, pickedIds.Length)
+            var vm = new ExportViewModel(layers, pickedIds)
             {
                 OutputFolder = Path.GetDirectoryName(doc.Name) ?? "",
                 BaseName = Path.GetFileNameWithoutExtension(doc.Name) is { Length: > 0 } n ? n : "export",
             };
-            if (preCheckedLayers is not null)
-            {
-                vm.SelectLayers(preCheckedLayers);
-            }
 
             var dialog = new ExportDialog(vm);
             if (AcApp.ShowModalWindow(dialog) != true)
@@ -79,16 +54,9 @@ public class ExportLayersCommand
 
             using (doc.LockDocument())
             {
-                Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection ids;
-                if (vm.HasPreselection && vm.UsePreselectionOnly)
-                {
-                    ids = new Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection(pickedIds);
-                    ed.WriteMessage($"\n[LayerExporter] 미리 선택한 {ids.Count}개 객체를 내보냅니다.\n");
-                }
-                else
-                {
-                    ids = LayerService.CollectEntityIds(doc.Database, vm.SelectedLayerNames);
-                }
+                var ids = vm.IsObjectMode
+                    ? new Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection(vm.SelectedObjectIds.ToArray())
+                    : LayerService.CollectEntityIds(doc.Database, vm.SelectedLayerNames);
 
                 if (ids.Count == 0)
                 {
@@ -96,11 +64,15 @@ public class ExportLayersCommand
                     return;
                 }
 
-                if (vm.Format == ExportFormat.Dxf)
+                ed.WriteMessage($"\n[LayerExporter] {ids.Count}개 객체를 내보냅니다.\n");
+
+                // DXF/SHP는 각각 또는 둘 다 선택 가능하며, 선택된 형식을 순차로 내보낸다.
+                if (vm.ExportDxf)
                 {
                     ExportDxf(doc, ids, vm, ed);
                 }
-                else
+
+                if (vm.ExportShp)
                 {
                     ExportShp(doc, ids, vm, ed);
                 }

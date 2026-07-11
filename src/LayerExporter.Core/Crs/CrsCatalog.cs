@@ -34,7 +34,7 @@ public static class CrsCatalog
 
         // "EPSG:5186" 또는 순수 숫자 형태 지원
         var numeric = trimmed.StartsWith("EPSG:", StringComparison.OrdinalIgnoreCase)
-            ? trimmed[5..]
+            ? trimmed.Substring(5)
             : trimmed;
         if (int.TryParse(numeric, out var epsg))
         {

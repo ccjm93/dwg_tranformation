@@ -21,7 +21,7 @@ public static class GeometryBuilder
     {
         failReason = null;
         var pts = new List<Pt2>(points);
-        if (pts.Count > 1 && (pts[0].X != pts[^1].X || pts[0].Y != pts[^1].Y))
+        if (pts.Count > 1 && (pts[0].X != pts[pts.Count - 1].X || pts[0].Y != pts[pts.Count - 1].Y))
         {
             pts.Add(pts[0]);
         }

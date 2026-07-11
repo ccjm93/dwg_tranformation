@@ -1,17 +1,25 @@
 <Project>
-  <!-- Civil3DVersion에 따라 플러그인 프로젝트의 TFM과 Autodesk 참조 경로를 스위칭한다.
-       2026 = .NET 8, 2027 = .NET 10 (설치본 acdbmgd.runtimeconfig.json 기준)
-       Core/테스트 프로젝트는 자체 TFM을 사용한다. -->
+  <!-- Civil3DVersion(2018~2027)에 따라 플러그인 프로젝트의 TFM과 AutoCAD 참조 패키지 버전을 스위칭한다.
+       AutoCAD 관리(.NET) API는 밴드 내에서 바이너리 호환이므로 밴드당 1개 바이너리만 빌드한다.
+         2018–2024 (R22.0–R24.3) = .NET Framework 4.8, AutoCAD.NET 22.0 참조
+         2025–2026 (R25.0–R25.1) = .NET 8,            AutoCAD.NET 25.0 참조
+         2027      (R26.0)       = .NET 10,           AutoCAD.NET 26.0 참조
+       각 밴드의 '최저' 버전 참조로 빌드해야 상위 버전에서도 로드된다.
+       Core는 net48;net8.0 멀티타깃, 테스트 프로젝트는 자체 TFM을 사용한다. -->
   <PropertyGroup>
     <Civil3DVersion Condition="'$(Civil3DVersion)' == ''">2026</Civil3DVersion>
-    <AcadRoot>C:\Program Files\Autodesk\AutoCAD $(Civil3DVersion)</AcadRoot>
+    <AcadBand Condition="'$(Civil3DVersion)' &lt;= '2024'">2018</AcadBand>
+    <AcadBand Condition="'$(AcadBand)' == '' AND '$(Civil3DVersion)' &lt;= '2026'">2025</AcadBand>
+    <AcadBand Condition="'$(AcadBand)' == ''">2027</AcadBand>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'LayerExporter' AND '$(Civil3DVersion)' == '2026'">
-    <TargetFramework>net8.0-windows</TargetFramework>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'LayerExporter' AND '$(Civil3DVersion)' == '2027'">
-    <TargetFramework>net10.0-windows</TargetFramework>
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'LayerExporter'">
+    <TargetFramework Condition="'$(AcadBand)' == '2018'">net48</TargetFramework>
+    <TargetFramework Condition="'$(AcadBand)' == '2025'">net8.0-windows</TargetFramework>
+    <TargetFramework Condition="'$(AcadBand)' == '2027'">net10.0-windows</TargetFramework>
+    <AutoCadNetPackageVersion Condition="'$(AcadBand)' == '2018'">22.0.0</AutoCadNetPackageVersion>
+    <AutoCadNetPackageVersion Condition="'$(AcadBand)' == '2025'">25.0.1</AutoCadNetPackageVersion>
+    <AutoCadNetPackageVersion Condition="'$(AcadBand)' == '2027'">26.0.0</AutoCadNetPackageVersion>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -19,4 +27,14 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
+
+  <!-- net48에는 SDK implicit usings가 생성되지 않으므로 동일한 기본 using을 명시하고,
+       .NET Framework 타기팅 팩 없이도 빌드되도록 참조 어셈블리 패키지를 사용한다. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <Using Include="System" />
+    <Using Include="System.Collections.Generic" />
+    <Using Include="System.IO" />
+    <Using Include="System.Linq" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
 </Project>

@@ -28,8 +28,9 @@ public static class Tessellation
             return Math.PI / 2;
         }
 
+        // Math.Clamp은 net48에 없으므로 Min/Max 조합 사용
         var step = 2.0 * Math.Acos(Math.Max(ratio, -1.0));
-        return Math.Clamp(step, 1e-4, Math.PI / 2);
+        return Math.Min(Math.Max(step, 1e-4), Math.PI / 2);
     }
 
     /// <summary>
@@ -39,7 +40,7 @@ public static class Tessellation
     public static List<Pt2> TessellateArc(Pt2 center, double radius, double startAngle, double sweepAngle, double tolerance)
     {
         var step = MaxAngleStep(radius, tolerance);
-        var n = Math.Clamp((int)Math.Ceiling(Math.Abs(sweepAngle) / step), MinSegmentsPerArc, MaxSegmentsPerArc);
+        var n = Math.Min(Math.Max((int)Math.Ceiling(Math.Abs(sweepAngle) / step), MinSegmentsPerArc), MaxSegmentsPerArc);
         var points = new List<Pt2>(n + 1);
         for (var i = 0; i <= n; i++)
         {
