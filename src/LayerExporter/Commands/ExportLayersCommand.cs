@@ -13,7 +13,7 @@ namespace LayerExporter.Commands;
 
 public class ExportLayersCommand
 {
-    [CommandMethod("EXPORTLAYERS", CommandFlags.Modal | CommandFlags.UsePickSet)]
+    [CommandMethod("DwgToSHP", CommandFlags.Modal | CommandFlags.UsePickSet)]
     public void Run()
     {
         var doc = AcApp.DocumentManager.MdiActiveDocument;

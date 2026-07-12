@@ -26,8 +26,8 @@ public sealed class ExportViewModel : INotifyPropertyChanged
     private SelectionMode _mode = SelectionMode.Objects;
     private string _outputFolder = "";
     private string _baseName = "export";
-    private bool _exportDxf = true;
-    private bool _exportShp;
+    private bool _exportShp = true;
+    private bool _exportDxf;
     private bool _closedPolylinesAsPolygons = true;
     private double _tolerance = 0.1;
     private bool _includeZ;

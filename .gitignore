@@ -4,3 +4,11 @@ deploy/bin/
 .omc/
 *.user
 .vs/
+
+# 설치 프로그램 빌드 산출물 (재생성 가능)
+installer/dist/
+installer/payload/
+installer/staging/
+
+# 아이콘 미리보기 (참고용, 빌드에는 icon32/icon16만 사용)
+src/LayerExporter/Assets/icon-preview-512.png

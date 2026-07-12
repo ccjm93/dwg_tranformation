@@ -14,6 +14,12 @@ public sealed record CrsResolution(string? EsriWkt, string? Code, string Source)
 /// </summary>
 public static class CoordinateSystemResolver
 {
+    /// <summary>
+    /// 현재 프로세스가 Civil 3D(=Map 3D 포함)인지 여부. AeccDbMgd 로드 여부로 판정한다.
+    /// MAPCSASSIGN(Map 전용 명령) 사용 가능 여부의 프록시로 쓰인다.
+    /// </summary>
+    public static bool IsCivil3DAvailable() => FindCivilApplicationType() is not null;
+
     public static string? GetDrawingCoordinateSystemCode()
     {
         try

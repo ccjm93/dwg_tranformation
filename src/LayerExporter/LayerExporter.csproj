@@ -16,6 +16,18 @@
     <ProjectReference Include="..\LayerExporter.Core\LayerExporter.Core.csproj" />
   </ItemGroup>
 
+  <!-- 리본 버튼 아이콘 (32/16px). 어셈블리에 내장해 리플렉션으로 로드한다. -->
+  <ItemGroup>
+    <!-- 기본 None 글롭과 중복 방지 (미리보기 png는 빌드에 포함하지 않음) -->
+    <None Remove="Assets\*.png" />
+    <EmbeddedResource Include="Assets\icon32.png">
+      <LogicalName>LayerExporter.Assets.icon32.png</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\icon16.png">
+      <LogicalName>LayerExporter.Assets.icon16.png</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
   <!-- WinForms SDK가 넣는 global using이 WPF 타입(Application/MessageBox)과 모호해지는 것을 방지.
        WinForms는 폴더 대화상자 한 곳에서만 전체 이름으로 사용한다. -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net48'">

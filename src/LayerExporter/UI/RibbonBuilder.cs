@@ -1,16 +1,21 @@
+using System.Reflection;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Autodesk.AutoCAD.ApplicationServices.Core;
 using Autodesk.Windows;
 
 namespace LayerExporter.UI;
 
 /// <summary>
-/// AutoCAD 기본 "Add-ins" 리본 탭에 EXPORTLAYERS 실행 버튼을 추가한다.
+/// 전용 "DH 플러그인" 리본 탭을 신설하고 그 안에 DwgToSHP 실행 버튼을 추가한다.
 /// 리본은 플러그인 로드 시점에 아직 준비되지 않았을 수 있으므로 Idle 이벤트로 지연 설치한다.
-/// 명령(EXPORTLAYERS)은 그대로 유지되며, 버튼은 그 명령을 호출한다.
+/// 명령(DwgToSHP)은 그대로 유지되며, 버튼은 그 명령을 호출한다.
 /// </summary>
 public static class RibbonBuilder
 {
     private const string PanelSourceId = "LAYEREXPORTER_PANEL";
+    private const string TabId = "DH_PLUGIN_TAB";
+    private const string TabTitle = "DH 플러그인";
 
     public static void Install()
     {
@@ -58,7 +63,7 @@ public static class RibbonBuilder
                 }
             }
 
-            var tab = FindOrCreateAddinsTab(ribbon);
+            var tab = FindOrCreateDhTab(ribbon);
 
             var source = new RibbonPanelSource { Title = "레이어 내보내기", Id = PanelSourceId };
             var button = new RibbonButton
@@ -68,10 +73,12 @@ public static class RibbonBuilder
                 ShowImage = true,
                 Size = RibbonItemSize.Large,
                 Orientation = System.Windows.Controls.Orientation.Vertical,
-                ToolTip = "선택한 객체 또는 레이어를 DXF/SHP로 내보냅니다 (EXPORTLAYERS)",
+                ToolTip = "선택한 객체 또는 레이어를 SHP/DXF로 내보냅니다 (DwgToSHP)",
                 // 끝의 공백이 Enter 역할을 해 명령을 즉시 실행한다
-                CommandParameter = "EXPORTLAYERS ",
+                CommandParameter = "DwgToSHP ",
                 CommandHandler = new ExportCommandHandler(),
+                LargeImage = LoadImage("LayerExporter.Assets.icon32.png"),
+                Image = LoadImage("LayerExporter.Assets.icon16.png"),
             };
 
             source.Items.Add(button);
@@ -79,24 +86,49 @@ public static class RibbonBuilder
         }
         catch
         {
-            // 리본 구성 실패는 치명적이지 않다 — 명령(EXPORTLAYERS)으로 계속 사용 가능
+            // 리본 구성 실패는 치명적이지 않다 — 명령(DwgToSHP)으로 계속 사용 가능
         }
     }
 
-    private static RibbonTab FindOrCreateAddinsTab(RibbonControl ribbon)
+    /// <summary>어셈블리에 내장된 PNG 아이콘을 ImageSource로 로드한다. 실패 시 null(아이콘 없이 표시).</summary>
+    private static ImageSource? LoadImage(string resourceName)
     {
-        // 기본 "Add-ins" 탭 탐색 (표준 Id 또는 현지화된 제목)
+        try
+        {
+            var asm = Assembly.GetExecutingAssembly();
+            using var stream = asm.GetManifestResourceStream(resourceName);
+            if (stream is null)
+            {
+                return null;
+            }
+
+            var bitmap = new BitmapImage();
+            bitmap.BeginInit();
+            bitmap.CacheOption = BitmapCacheOption.OnLoad;
+            bitmap.StreamSource = stream;
+            bitmap.EndInit();
+            bitmap.Freeze();
+            return bitmap;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static RibbonTab FindOrCreateDhTab(RibbonControl ribbon)
+    {
+        // 이미 신설된 "DH 플러그인" 탭이 있으면 재사용 (재로드 대비)
         foreach (var t in ribbon.Tabs)
         {
-            if (string.Equals(t.Id, "ACAD.Addins", StringComparison.OrdinalIgnoreCase)
-                || (t.Title?.IndexOf("Add", StringComparison.OrdinalIgnoreCase) >= 0)
-                || (t.Title?.IndexOf("애드인", StringComparison.Ordinal) >= 0))
+            if (string.Equals(t.Id, TabId, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(t.Title, TabTitle, StringComparison.Ordinal))
             {
                 return t;
             }
         }
 
-        var tab = new RibbonTab { Title = "Add-ins", Id = "ACAD.Addins" };
+        var tab = new RibbonTab { Title = TabTitle, Id = TabId };
         ribbon.Tabs.Add(tab);
         return tab;
     }

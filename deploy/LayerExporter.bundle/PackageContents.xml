@@ -11,7 +11,7 @@
     <ComponentEntry AppName="LayerExporter" ModuleName="./Contents/2018/LayerExporter.dll"
         AppDescription="레이어 DXF/SHP 내보내기" LoadOnAutoCADStartup="True">
       <Commands GroupName="LAYEREXPORTER">
-        <Command Global="EXPORTLAYERS" Local="EXPORTLAYERS" />
+        <Command Global="DwgToSHP" Local="DwgToSHP" />
       </Commands>
     </ComponentEntry>
   </Components>
@@ -22,7 +22,7 @@
     <ComponentEntry AppName="LayerExporter" ModuleName="./Contents/2025/LayerExporter.dll"
         AppDescription="레이어 DXF/SHP 내보내기" LoadOnAutoCADStartup="True">
       <Commands GroupName="LAYEREXPORTER">
-        <Command Global="EXPORTLAYERS" Local="EXPORTLAYERS" />
+        <Command Global="DwgToSHP" Local="DwgToSHP" />
       </Commands>
     </ComponentEntry>
   </Components>
@@ -33,7 +33,7 @@
     <ComponentEntry AppName="LayerExporter" ModuleName="./Contents/2027/LayerExporter.dll"
         AppDescription="레이어 DXF/SHP 내보내기" LoadOnAutoCADStartup="True">
       <Commands GroupName="LAYEREXPORTER">
-        <Command Global="EXPORTLAYERS" Local="EXPORTLAYERS" />
+        <Command Global="DwgToSHP" Local="DwgToSHP" />
       </Commands>
     </ComponentEntry>
   </Components>
