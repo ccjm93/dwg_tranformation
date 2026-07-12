@@ -45,13 +45,25 @@ public class ExportLayersCommand
                 BaseName = Path.GetFileNameWithoutExtension(doc.Name) is { Length: > 0 } n ? n : "export",
             };
 
-            var dialog = new ExportDialog(vm);
-            if (AcApp.ShowModalWindow(dialog) != true)
-            {
-                ed.WriteMessage("\n[LayerExporter] 취소되었습니다.\n");
-                return;
-            }
+            // 모델리스 창으로 띄운다 — 창을 열어둔 채 도면을 확대/축소/이동하고
+            // 위성사진(GEOMAP)을 켜고 끄며 좌표를 확인한 뒤 객체 선택·내보내기를 진행할 수 있다.
+            ExportDialog.ShowModeless(doc, vm);
+        }
+        catch (System.Exception ex)
+        {
+            ed.WriteMessage($"\n[LayerExporter] 오류: {ex.Message}\n");
+        }
+    }
 
+    /// <summary>
+    /// 다이얼로그의 "내보내기"에서 호출된다. 모델리스 컨텍스트이므로 문서를 잠그고 내보낸다.
+    /// 성공적으로 1개 이상 내보냈으면 true(창을 닫는다), 아니면 false(창 유지).
+    /// </summary>
+    public static bool PerformExport(Document doc, ExportViewModel vm)
+    {
+        var ed = doc.Editor;
+        try
+        {
             using (doc.LockDocument())
             {
                 var ids = vm.IsObjectMode
@@ -61,7 +73,7 @@ public class ExportLayersCommand
                 if (ids.Count == 0)
                 {
                     ed.WriteMessage("\n[LayerExporter] 내보낼 객체가 없습니다.\n");
-                    return;
+                    return false;
                 }
 
                 ed.WriteMessage($"\n[LayerExporter] {ids.Count}개 객체를 내보냅니다.\n");
@@ -76,11 +88,14 @@ public class ExportLayersCommand
                 {
                     ExportShp(doc, ids, vm, ed);
                 }
+
+                return true;
             }
         }
         catch (System.Exception ex)
         {
             ed.WriteMessage($"\n[LayerExporter] 오류: {ex.Message}\n");
+            return false;
         }
     }
 

@@ -131,9 +131,23 @@ internal static class Program
 
     private static bool Confirm(string prompt)
     {
+        // 콘솔 입력을 쓸 수 없는(리다이렉트/무콘솔) 환경에서는 사용자 확인을 받을 수 없으므로 안전하게 중단한다.
+        if (Console.IsInputRedirected)
+        {
+            Console.WriteLine(prompt + "N (입력 불가 환경 — 자동 중단)");
+            return false;
+        }
+
         Console.Write(prompt);
-        var key = Console.ReadKey(intercept: false).Key;
-        Console.WriteLine();
-        return key == ConsoleKey.Y;
+        try
+        {
+            var key = Console.ReadKey(intercept: false).Key;
+            Console.WriteLine();
+            return key == ConsoleKey.Y;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
     }
 }

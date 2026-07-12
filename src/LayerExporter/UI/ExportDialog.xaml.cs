@@ -9,9 +9,13 @@ namespace LayerExporter.UI;
 
 public partial class ExportDialog : Window
 {
-    public ExportDialog(ExportViewModel viewModel)
+    private static ExportDialog? _current;
+    private readonly Autodesk.AutoCAD.ApplicationServices.Document _doc;
+
+    private ExportDialog(Autodesk.AutoCAD.ApplicationServices.Document doc, ExportViewModel viewModel)
     {
         InitializeComponent();
+        _doc = doc;
         DataContext = viewModel;
 
         // 명령 실행 전 미리 선택해 둔 객체를 다이얼로그가 열릴 때 도면에서 하이라이트로 유지하고,
@@ -21,16 +25,35 @@ public partial class ExportDialog : Window
         Closed += (_, _) => HighlightSelected(false);
     }
 
+    /// <summary>
+    /// 플러그인 창을 모델리스로 띄운다. 모델리스라 창을 열어둔 채 도면을 확대/축소/이동하고
+    /// 위성사진을 켜고 끌 수 있다. 이미 열려 있으면 앞으로 가져온다.
+    /// </summary>
+    public static void ShowModeless(Autodesk.AutoCAD.ApplicationServices.Document doc, ExportViewModel viewModel)
+    {
+        if (_current is not null)
+        {
+            _current.Activate();
+            return;
+        }
+
+        var dialog = new ExportDialog(doc, viewModel);
+        _current = dialog;
+        dialog.Closed += (_, _) => _current = null;
+        AcApp.ShowModelessWindow(dialog);
+    }
+
     private ExportViewModel ViewModel => (ExportViewModel)DataContext;
 
     /// <summary>현재 객체 선택분을 도면에서 하이라이트하거나 해제한다. 부가 기능이므로 실패해도 무시한다.</summary>
     private void HighlightSelected(bool on)
     {
-        var doc = AcApp.DocumentManager.MdiActiveDocument;
-        if (doc is null || ViewModel.SelectedObjectIds.Count == 0)
+        if (ViewModel.SelectedObjectIds.Count == 0)
         {
             return;
         }
+
+        var doc = _doc;
 
         try
         {
@@ -73,53 +96,32 @@ public partial class ExportDialog : Window
     }
 
     /// <summary>
-    /// 도면 좌표계를 지정한다. 실행 환경을 감지해 Civil 3D/Map이면 MAPCSASSIGN(Map 좌표계 코드 지정),
-    /// 일반 AutoCAD면 GEOGRAPHICLOCATION(지오 위치 지정)으로 자동 전환한다.
+    /// 도면 좌표계를 지정한다. 모델리스 창이라 명령이 자체 GUI(대화상자)로 정상 표시되며 창은 유지된다.
+    /// Civil 3D/Map이면 MAPCSASSIGN, 일반 AutoCAD면 GEOGRAPHICLOCATION으로 자동 전환한다.
     /// </summary>
     private void OnAssignCoordinateSystem(object sender, RoutedEventArgs e)
     {
-        if (Crs.CoordinateSystemResolver.IsCivil3DAvailable())
-        {
-            RunAutoCadCommand("좌표계 지정(MAPCSASSIGN)", "_.MAPCSASSIGN");
-        }
-        else
-        {
-            RunAutoCadCommand("지오 위치 지정(GEOGRAPHICLOCATION)", "_.GEOGRAPHICLOCATION");
-        }
+        SendCommand(Crs.CoordinateSystemResolver.IsCivil3DAvailable()
+            ? "_.MAPCSASSIGN "
+            : "_.GEOGRAPHICLOCATION ");
     }
 
-    /// <summary>위성사진(GEOMAP 하이브리드)을 켜서 좌표가 제대로 적용됐는지 확인한다.</summary>
-    private void OnVerifyWithGeoMap(object sender, RoutedEventArgs e)
-    {
-        RunAutoCadCommand("좌표 확인(GEOMAP 위성사진)", "_.GEOMAP", "_Hybrid");
-    }
+    /// <summary>위성사진(GEOMAP 하이브리드)을 켠다. 창을 열어둔 채 도면을 확대/축소/이동해 확인한다.</summary>
+    private void OnGeoMapOn(object sender, RoutedEventArgs e) => SendCommand("_.GEOMAP _Hybrid ");
 
-    /// <summary>모달 다이얼로그를 잠시 숨기고 활성 도면에서 AutoCAD 명령을 동기 실행한다.</summary>
-    private void RunAutoCadCommand(string label, params object[] command)
-    {
-        var doc = AcApp.DocumentManager.MdiActiveDocument;
-        if (doc is null)
-        {
-            return;
-        }
+    /// <summary>위성사진(GEOMAP)을 끈다.</summary>
+    private void OnGeoMapOff(object sender, RoutedEventArgs e) => SendCommand("_.GEOMAP _Off ");
 
-        var ed = doc.Editor;
-        var interaction = ed.StartUserInteraction(this);
+    /// <summary>활성 도면 커맨드라인에 명령 매크로를 보낸다. 모델리스라 창은 그대로 유지된다.</summary>
+    private void SendCommand(string macro)
+    {
         try
         {
-            ed.Command(command);
-        }
-        catch (Autodesk.AutoCAD.Runtime.Exception ex)
-        {
-            ed.WriteMessage($"\n[LayerExporter] {label} 실패: {ex.Message}\n");
+            _doc.SendStringToExecute(macro, true, false, true);
         }
         catch (System.Exception ex)
         {
-            ed.WriteMessage($"\n[LayerExporter] {label} 실패: {ex.Message}\n");
-        }
-        finally
-        {
-            interaction.End();
+            _doc.Editor.WriteMessage($"\n[LayerExporter] 명령 실행 실패: {ex.Message}\n");
         }
     }
 
@@ -221,6 +223,12 @@ public partial class ExportDialog : Window
             return;
         }
 
-        DialogResult = true;
+        // 모델리스 창은 DialogResult을 설정할 수 없으므로 직접 내보낸 뒤 창을 닫는다.
+        if (LayerExporter.Commands.ExportLayersCommand.PerformExport(_doc, ViewModel))
+        {
+            Close();
+        }
     }
+
+    private void OnCancel(object sender, RoutedEventArgs e) => Close();
 }

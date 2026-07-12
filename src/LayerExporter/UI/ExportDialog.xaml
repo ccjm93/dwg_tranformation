@@ -29,11 +29,14 @@
                                Text="도면 좌표계/지오 위치 지정"/>
                 </DockPanel>
                 <DockPanel Margin="0,2">
-                    <Button DockPanel.Dock="Left" Content="좌표 확인" Width="110" Padding="8,2"
-                            ToolTip="위성사진(GEOMAP 하이브리드)을 켜서 좌표가 제대로 적용됐는지 확인합니다"
-                            Click="OnVerifyWithGeoMap"/>
-                    <TextBlock VerticalAlignment="Center" Margin="8,0,0,0" Foreground="Gray"
-                               Text="위성사진 켜서 좌표 확인 (GEOMAP)"/>
+                    <Button DockPanel.Dock="Left" Content="위성사진 켜기" Width="110" Padding="8,2"
+                            ToolTip="GEOMAP 위성사진(하이브리드)을 켭니다. 창을 열어둔 채 도면을 확대/축소/이동해 좌표를 확인하세요."
+                            Click="OnGeoMapOn"/>
+                    <Button DockPanel.Dock="Left" Content="위성사진 끄기" Width="110" Padding="8,2" Margin="6,0,0,0"
+                            ToolTip="위성사진(GEOMAP)을 끕니다."
+                            Click="OnGeoMapOff"/>
+                    <TextBlock VerticalAlignment="Center" Margin="8,0,0,0" Foreground="Gray" TextWrapping="Wrap"
+                               Text="켠 뒤 도면에서 휠로 확대/축소·이동"/>
                 </DockPanel>
             </StackPanel>
         </GroupBox>
@@ -137,7 +140,7 @@
         <!-- 버튼 -->
         <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
             <Button Content="내보내기" Width="90" Height="28" IsDefault="True" Click="OnExport"/>
-            <Button Content="취소" Width="70" Height="28" IsCancel="True" Margin="8,0,0,0"/>
+            <Button Content="닫기" Width="70" Height="28" Click="OnCancel" Margin="8,0,0,0"/>
         </StackPanel>
     </Grid>
 </Window>
