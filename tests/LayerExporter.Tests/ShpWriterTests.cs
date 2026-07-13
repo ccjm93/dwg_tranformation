@@ -144,4 +144,94 @@ public class ShpWriterTests : IDisposable
         Assert.False(File.Exists(basePath + "_line.shp"));
         Assert.False(File.Exists(basePath + "_polygon.shp"));
     }
+
+    [Fact]
+    public void Rewrite_RemovesFilesForBucketsNoLongerPresent()
+    {
+        var basePath = Path.Combine(_dir, "rewrite_buckets");
+        ShpWriter.Write(basePath,
+        [
+            new(GeometryBuilder.BuildPoint(0, 0), Attrs("point")),
+            new(GeometryBuilder.BuildLineString([new Pt2(0, 0), new Pt2(1, 1)]), Attrs("line")),
+        ], null);
+
+        var result = ShpWriter.Write(basePath,
+        [
+            new(GeometryBuilder.BuildPoint(2, 3), Attrs("point")),
+        ], null);
+
+        Assert.Single(result.WrittenFiles);
+        Assert.True(File.Exists(basePath + "_point.shp"));
+        Assert.False(File.Exists(basePath + "_line.shp"));
+        Assert.False(File.Exists(basePath + "_line.dbf"));
+        Assert.False(File.Exists(basePath + "_line.shx"));
+        Assert.False(File.Exists(basePath + "_line.cpg"));
+    }
+
+    [Fact]
+    public void Rewrite_WithoutWkt_RemovesStalePrjAndKnownSidecars()
+    {
+        var basePath = Path.Combine(_dir, "rewrite_prj");
+        ShpWriter.Write(basePath,
+        [
+            new(GeometryBuilder.BuildPoint(0, 0), Attrs("point")),
+        ], "TEST_WKT");
+        File.WriteAllText(basePath + "_point.qix", "stale");
+        File.WriteAllText(basePath + "_point.shp.xml", "stale");
+
+        ShpWriter.Write(basePath,
+        [
+            new(GeometryBuilder.BuildPoint(1, 1), Attrs("point")),
+        ], null);
+
+        Assert.False(File.Exists(basePath + "_point.prj"));
+        Assert.False(File.Exists(basePath + "_point.qix"));
+        Assert.False(File.Exists(basePath + "_point.shp.xml"));
+    }
+
+    [Fact]
+    public void FailureBeforeCommit_PreservesExistingOutputSet()
+    {
+        var basePath = Path.Combine(_dir, "preserve_on_failure");
+        ShpWriter.Write(basePath,
+        [
+            new(GeometryBuilder.BuildPoint(7, 8), Attrs("original")),
+        ], "ORIGINAL_WKT");
+        var originalShp = File.ReadAllBytes(basePath + "_point.shp");
+        var originalDbf = File.ReadAllBytes(basePath + "_point.dbf");
+
+        Assert.Throws<InvalidOperationException>(() =>
+            ShpWriter.Write(basePath, FeaturesThatFail(), null));
+
+        Assert.Equal(originalShp, File.ReadAllBytes(basePath + "_point.shp"));
+        Assert.Equal(originalDbf, File.ReadAllBytes(basePath + "_point.dbf"));
+        Assert.Equal("ORIGINAL_WKT", File.ReadAllText(basePath + "_point.prj"));
+    }
+
+    [Fact]
+    public void FailureDuringStaging_PreservesExistingOutputSet()
+    {
+        var basePath = Path.Combine(_dir, "preserve_on_write_failure");
+        ShpWriter.Write(basePath,
+        [
+            new(GeometryBuilder.BuildPoint(7, 8), Attrs("original")),
+        ], "ORIGINAL_WKT");
+        var originalShp = File.ReadAllBytes(basePath + "_point.shp");
+        var invalidAttributes = Attrs("replacement");
+        invalidAttributes["Unsupported"] = new object();
+
+        Assert.ThrowsAny<Exception>(() => ShpWriter.Write(basePath,
+        [
+            new(GeometryBuilder.BuildPoint(0, 0), invalidAttributes),
+        ], null));
+
+        Assert.Equal(originalShp, File.ReadAllBytes(basePath + "_point.shp"));
+        Assert.Equal("ORIGINAL_WKT", File.ReadAllText(basePath + "_point.prj"));
+    }
+
+    private static IEnumerable<ShpFeature> FeaturesThatFail()
+    {
+        yield return new ShpFeature(GeometryBuilder.BuildPoint(0, 0), Attrs("replacement"));
+        throw new InvalidOperationException("Simulated conversion failure.");
+    }
 }

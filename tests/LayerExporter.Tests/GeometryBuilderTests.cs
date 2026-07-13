@@ -59,4 +59,24 @@ public class GeometryBuilderTests
         Assert.NotNull(polygon);
         Assert.Equal(100.0, polygon!.Area, 9);
     }
+
+    [Fact]
+    public void ClockwisePolygonWithZ_ClosesReorientsAndPreservesZValues()
+    {
+        var openSquare = new List<Pt2>
+        {
+            new(0, 0), new(0, 10), new(10, 10), new(10, 0),
+        };
+        var zs = new List<double> { 1, 2, 3, 4 };
+
+        var polygon = GeometryBuilder.TryBuildPolygon(openSquare, out var reason, zs);
+
+        Assert.NotNull(polygon);
+        Assert.Null(reason);
+        var coordinates = polygon!.ExteriorRing.Coordinates;
+        Assert.Equal(5, coordinates.Length);
+        Assert.True(Orientation.IsCCW(polygon.ExteriorRing.CoordinateSequence));
+        Assert.Equal(coordinates[0].Z, coordinates[^1].Z);
+        Assert.Equal(new[] { 1.0, 2.0, 3.0, 4.0 }, coordinates.Take(4).Select(c => c.Z).OrderBy(z => z));
+    }
 }

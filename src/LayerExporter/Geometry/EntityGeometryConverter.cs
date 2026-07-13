@@ -100,8 +100,12 @@ public static class EntityGeometryConverter
             vertices.Add((new Pt2(p.X, p.Y), pl.GetBulgeAt(i)));
         }
 
-        var pts = Tessellation.TessellatePolyline(vertices, pl.Closed, opt.Tolerance);
-        return BuildLineOrPolygon(pts, pl.Closed, pl.Elevation, opt, attrs);
+        var ocsPoints = Tessellation.TessellatePolyline(vertices, pl.Closed, opt.Tolerance);
+        var ocsToWcs = Matrix3d.PlaneToWorld(pl.Normal);
+        var wcsPoints = ocsPoints
+            .Select(p => new Point3d(p.X, p.Y, pl.Elevation).TransformBy(ocsToWcs))
+            .ToList();
+        return BuildLineOrPolygon(wcsPoints, pl.Closed, opt, attrs);
     }
 
     private static ConversionResult ConvertArc(Arc a, ConversionOptions opt, Dictionary<string, object?> attrs)
@@ -112,17 +116,18 @@ public static class EntityGeometryConverter
             sweep += Math.PI * 2;
         }
 
-        var pts = Tessellation.TessellateArc(
+        var segmentTemplate = Tessellation.TessellateArc(
             new Pt2(a.Center.X, a.Center.Y), a.Radius, a.StartAngle, sweep, opt.Tolerance);
-        // IncludeZ 시 다른 곡선과 동일하게 Z를 채워 한 파일 안에서 2D/3D가 섞이지 않게 한다
-        var zs = opt.IncludeZ ? Enumerable.Repeat(a.Center.Z, pts.Count).ToList() : null;
-        return Ok(GeometryBuilder.BuildLineString(pts, zs), attrs, a.Center.Z);
+        var wcsPoints = SampleCurve(a, segmentTemplate.Count);
+        return BuildLineOrPolygon(wcsPoints, false, opt, attrs, a.Center.Z);
     }
 
     private static ConversionResult ConvertCircle(Circle c, ConversionOptions opt, Dictionary<string, object?> attrs)
     {
-        var pts = Tessellation.TessellateCircle(new Pt2(c.Center.X, c.Center.Y), c.Radius, opt.Tolerance);
-        return BuildLineOrPolygon(pts, true, c.Center.Z, opt, attrs);
+        var segmentTemplate = Tessellation.TessellateCircle(
+            new Pt2(c.Center.X, c.Center.Y), c.Radius, opt.Tolerance);
+        var wcsPoints = SampleCurve(c, segmentTemplate.Count);
+        return BuildLineOrPolygon(wcsPoints, true, opt, attrs, c.Center.Z);
     }
 
     /// <summary>Ellipse/Spline/Polyline2d/3d 등 일반 Curve를 거리 기반 샘플링으로 분할한다.</summary>
@@ -138,32 +143,45 @@ public static class EntityGeometryConverter
         var chordStep = Math.Max(opt.Tolerance * 20.0, 1e-6);
         var n = Math.Min(Math.Max((int)Math.Ceiling(length / chordStep), 8), 2048);
 
-        var pts = new List<Pt2>(n + 1);
-        var zs = opt.IncludeZ ? new List<double>(n + 1) : null;
+        var points = new List<Point3d>(n + 1);
         var startDist = c.GetDistanceAtParameter(c.StartParam);
         for (var i = 0; i <= n; i++)
         {
             var p = c.GetPointAtDist(startDist + length * i / n);
-            pts.Add(new Pt2(p.X, p.Y));
-            zs?.Add(p.Z);
+            points.Add(p);
         }
 
-        var firstZ = c.StartPoint.Z;
-        return BuildLineOrPolygon(pts, c.Closed, firstZ, opt, attrs, zs);
+        return BuildLineOrPolygon(points, c.Closed, opt, attrs);
+    }
+
+    private static List<Point3d> SampleCurve(Curve curve, int pointCount)
+    {
+        var points = new List<Point3d>(pointCount);
+        var parameterRange = curve.EndParam - curve.StartParam;
+        for (var i = 0; i < pointCount; i++)
+        {
+            var fraction = pointCount == 1 ? 0.0 : (double)i / (pointCount - 1);
+            points.Add(curve.GetPointAtParameter(curve.StartParam + parameterRange * fraction));
+        }
+
+        return points;
     }
 
     private static ConversionResult BuildLineOrPolygon(
-        List<Pt2> pts, bool closed, double elevation, ConversionOptions opt,
-        Dictionary<string, object?> attrs, List<double>? zs = null)
+        IReadOnlyList<Point3d> points, bool closed, ConversionOptions opt,
+        Dictionary<string, object?> attrs, double? attributeElevation = null)
     {
+        var pts = points.Select(p => new Pt2(p.X, p.Y)).ToList();
         if (pts.Count < 2)
         {
             return new ConversionResult(null, attrs, "점이 부족한 형상");
         }
 
+        var elevation = attributeElevation ?? points[0].Z;
+        var zs = opt.IncludeZ ? points.Select(p => p.Z).ToList() : null;
         if (closed && opt.ClosedPolylinesAsPolygons)
         {
-            var polygon = GeometryBuilder.TryBuildPolygon(pts, out _);
+            var polygon = GeometryBuilder.TryBuildPolygon(pts, out _, zs);
             if (polygon is not null)
             {
                 return Ok(polygon, attrs, elevation);
@@ -171,7 +189,6 @@ public static class EntityGeometryConverter
             // 유효하지 않은 폴리곤은 라인으로 강등
         }
 
-        var lineZs = opt.IncludeZ ? (IReadOnlyList<double>?)(zs ?? Enumerable.Repeat(elevation, pts.Count).ToList()) : null;
-        return Ok(GeometryBuilder.BuildLineString(pts, lineZs), attrs, elevation);
+        return Ok(GeometryBuilder.BuildLineString(pts, zs), attrs, elevation);
     }
 }

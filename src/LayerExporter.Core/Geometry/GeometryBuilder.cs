@@ -17,13 +17,21 @@ public static class GeometryBuilder
     /// 닫힌 점 목록으로 폴리곤을 생성한다. 링이 닫혀있지 않으면 닫고,
     /// 외곽 링은 CCW(OGC 규약)로 보정한다. 유효하지 않으면 null을 반환한다.
     /// </summary>
-    public static Polygon? TryBuildPolygon(IReadOnlyList<Pt2> points, out string? failReason)
+    public static Polygon? TryBuildPolygon(
+        IReadOnlyList<Pt2> points,
+        out string? failReason,
+        IReadOnlyList<double>? zs = null)
     {
         failReason = null;
         var pts = new List<Pt2>(points);
+        var ringZs = zs is null ? null : new List<double>(zs);
         if (pts.Count > 1 && (pts[0].X != pts[pts.Count - 1].X || pts[0].Y != pts[pts.Count - 1].Y))
         {
             pts.Add(pts[0]);
+            if (ringZs is not null && ringZs.Count > 0)
+            {
+                ringZs.Add(ringZs[0]);
+            }
         }
 
         if (pts.Count < 4)
@@ -34,7 +42,7 @@ public static class GeometryBuilder
 
         try
         {
-            var ring = Factory.CreateLinearRing(ToCoordinates(pts, null));
+            var ring = Factory.CreateLinearRing(ToCoordinates(pts, ringZs));
             if (!NetTopologySuite.Algorithm.Orientation.IsCCW(ring.CoordinateSequence))
             {
                 ring = (LinearRing)ring.Reverse();

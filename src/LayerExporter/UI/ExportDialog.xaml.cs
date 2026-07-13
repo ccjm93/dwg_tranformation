@@ -1,4 +1,5 @@
 using System.Windows;
+using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using LayerExporter.UI.ViewModels;
@@ -9,10 +10,16 @@ namespace LayerExporter.UI;
 
 public partial class ExportDialog : Window
 {
-    private static ExportDialog? _current;
-    private readonly Autodesk.AutoCAD.ApplicationServices.Document _doc;
+    private static readonly Dictionary<Document, ExportDialog> OpenDialogs = new();
+    private static bool _documentEventsSubscribed;
 
-    private ExportDialog(Autodesk.AutoCAD.ApplicationServices.Document doc, ExportViewModel viewModel)
+    private readonly Document _doc;
+    private bool _isPicking;
+    private bool _isExporting;
+    private bool _isClosed;
+    private bool _isDocumentClosing;
+
+    private ExportDialog(Document doc, ExportViewModel viewModel)
     {
         InitializeComponent();
         _doc = doc;
@@ -22,25 +29,76 @@ public partial class ExportDialog : Window
         // 닫힐 때 하이라이트를 해제한다. 이렇게 하면 "화면에서 객체 선택"으로 추가할 때도
         // 기존 선택이 화면상에서 그대로 보인다.
         Loaded += (_, _) => HighlightSelected(true);
-        Closed += (_, _) => HighlightSelected(false);
+        Closed += OnClosed;
     }
 
     /// <summary>
     /// 플러그인 창을 모델리스로 띄운다. 모델리스라 창을 열어둔 채 도면을 확대/축소/이동하고
     /// 위성사진을 켜고 끌 수 있다. 이미 열려 있으면 앞으로 가져온다.
     /// </summary>
-    public static void ShowModeless(Autodesk.AutoCAD.ApplicationServices.Document doc, ExportViewModel viewModel)
+    public static void ShowModeless(Document doc, ExportViewModel viewModel)
     {
-        if (_current is not null)
+        if (OpenDialogs.TryGetValue(doc, out var current))
         {
-            _current.Activate();
+            current.Activate();
             return;
         }
 
         var dialog = new ExportDialog(doc, viewModel);
-        _current = dialog;
-        dialog.Closed += (_, _) => _current = null;
+        OpenDialogs.Add(doc, dialog);
+        SubscribeDocumentEvents();
         AcApp.ShowModelessWindow(dialog);
+    }
+
+    private static void SubscribeDocumentEvents()
+    {
+        if (_documentEventsSubscribed)
+        {
+            return;
+        }
+
+        AcApp.DocumentManager.DocumentToBeDestroyed += OnDocumentToBeDestroyed;
+        _documentEventsSubscribed = true;
+    }
+
+    private static void UnsubscribeDocumentEventsIfUnused()
+    {
+        if (!_documentEventsSubscribed || OpenDialogs.Count != 0)
+        {
+            return;
+        }
+
+        AcApp.DocumentManager.DocumentToBeDestroyed -= OnDocumentToBeDestroyed;
+        _documentEventsSubscribed = false;
+    }
+
+    private static void OnDocumentToBeDestroyed(object sender, DocumentCollectionEventArgs e)
+    {
+        if (OpenDialogs.TryGetValue(e.Document, out var dialog))
+        {
+            dialog._isDocumentClosing = true;
+            if (!dialog.Dispatcher.HasShutdownStarted)
+            {
+                dialog.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (!dialog._isClosed)
+                    {
+                        dialog.Close();
+                    }
+                }));
+            }
+        }
+    }
+
+    private void OnClosed(object? sender, EventArgs e)
+    {
+        _isClosed = true;
+        if (!_isDocumentClosing)
+        {
+            HighlightSelected(false);
+        }
+        OpenDialogs.Remove(_doc);
+        UnsubscribeDocumentEventsIfUnused();
     }
 
     private ExportViewModel ViewModel => (ExportViewModel)DataContext;
@@ -62,7 +120,7 @@ public partial class ExportDialog : Window
             {
                 foreach (var id in ViewModel.SelectedObjectIds)
                 {
-                    if (id.IsValid && !id.IsErased
+                    if (id.IsValid && !id.IsErased && id.Database == doc.Database
                         && tr.GetObject(id, OpenMode.ForRead) is Entity ent)
                     {
                         if (on)
@@ -125,70 +183,99 @@ public partial class ExportDialog : Window
         }
     }
 
-    private void OnPickObjectsFromScreen(object sender, RoutedEventArgs e)
+    private async void OnPickObjectsFromScreen(object sender, RoutedEventArgs e)
     {
-        var doc = AcApp.DocumentManager.MdiActiveDocument;
-        if (doc is null)
+        var ids = await SelectFromScreenAsync("\n내보낼 객체 선택: ");
+        if (ids is null || _isClosed || _isDocumentClosing)
         {
             return;
         }
 
-        var ed = doc.Editor;
-        // 다이얼로그를 잠시 숨기고 도면에서 객체를 선택하게 한다
-        var interaction = ed.StartUserInteraction(this);
-        try
-        {
-            var options = new PromptSelectionOptions
-            {
-                MessageForAdding = "\n내보낼 객체 선택 (기존 선택에 추가됨)",
-            };
-            var result = ed.GetSelection(options);
-            if (result.Status != PromptStatus.OK)
-            {
-                return;
-            }
-
-            ViewModel.AddSelectedObjects(result.Value.GetObjectIds());
-            // 기존 선택 + 새로 고른 객체 전체를 다시 하이라이트해 화면상 선택 상태를 유지한다.
-            HighlightSelected(true);
-            ed.WriteMessage($"\n[LayerExporter] 현재 {ViewModel.SelectedObjectCount}개 객체가 선택되었습니다.\n");
-        }
-        finally
-        {
-            interaction.End();
-        }
+        ViewModel.AddSelectedObjects(ids);
+        HighlightSelected(true);
+        _doc.Editor.WriteMessage(
+            $"\n[LayerExporter] 현재 {ViewModel.SelectedObjectCount}개 객체가 선택되었습니다.\n");
     }
 
-    private void OnPickLayersFromScreen(object sender, RoutedEventArgs e)
+    private async void OnPickLayersFromScreen(object sender, RoutedEventArgs e)
     {
-        var doc = AcApp.DocumentManager.MdiActiveDocument;
-        if (doc is null)
+        var ids = await SelectFromScreenAsync("\n내보낼 레이어의 객체 선택: ");
+        if (ids is null || _isClosed || _isDocumentClosing)
         {
             return;
         }
 
-        var ed = doc.Editor;
-        // 다이얼로그를 잠시 숨기고 도면에서 객체를 선택하게 한다
-        var interaction = ed.StartUserInteraction(this);
+        HashSet<string> layerNames;
+        using (_doc.LockDocument())
+        {
+            layerNames = Services.LayerService.GetLayerNames(_doc.Database, ids);
+        }
+        ViewModel.SelectLayers(layerNames);
+        _doc.Editor.WriteMessage(
+            $"\n[LayerExporter] {layerNames.Count}개 레이어가 체크되었습니다: {string.Join(", ", layerNames)}\n");
+    }
+
+    private async Task<ObjectId[]?> SelectFromScreenAsync(string message)
+    {
+        if (_isPicking || _isClosed || _isDocumentClosing)
+        {
+            return null;
+        }
+
+        _isPicking = true;
+        ObjectId[]? selectedIds = null;
         try
         {
-            var options = new PromptSelectionOptions
+            AcApp.DocumentManager.MdiActiveDocument = _doc;
+            IsEnabled = false;
+            Hide();
+
+            await AcApp.DocumentManager.ExecuteInCommandContextAsync(_ =>
             {
-                MessageForAdding = "\n내보낼 레이어의 객체 선택",
-            };
-            var result = ed.GetSelection(options);
-            if (result.Status != PromptStatus.OK)
+                if (_isClosed || _isDocumentClosing)
+                {
+                    return Task.CompletedTask;
+                }
+
+                var options = new PromptSelectionOptions { MessageForAdding = message };
+                var result = _doc.Editor.GetSelection(options);
+                if (result.Status == PromptStatus.OK)
+                {
+                    selectedIds = result.Value.GetObjectIds();
+                }
+
+                return Task.CompletedTask;
+            }, null);
+
+            return selectedIds?
+                .Where(id => id.IsValid && !id.IsErased && id.Database == _doc.Database)
+                .ToArray();
+        }
+        catch (System.Exception ex)
+        {
+            if (!_isDocumentClosing)
             {
-                return;
+                try
+                {
+                    _doc.Editor.WriteMessage($"\n[LayerExporter] 객체 선택 실패: {ex.Message}\n");
+                }
+                catch
+                {
+                    // The document may have closed before its destruction event reached the UI.
+                }
             }
 
-            var layerNames = Services.LayerService.GetLayerNames(doc.Database, result.Value.GetObjectIds());
-            ViewModel.SelectLayers(layerNames);
-            ed.WriteMessage($"\n[LayerExporter] {layerNames.Count}개 레이어가 체크되었습니다: {string.Join(", ", layerNames)}\n");
+            return null;
         }
         finally
         {
-            interaction.End();
+            _isPicking = false;
+            if (!_isClosed && !_isDocumentClosing)
+            {
+                IsEnabled = true;
+                Show();
+                Activate();
+            }
         }
     }
 
@@ -214,8 +301,13 @@ public partial class ExportDialog : Window
 #endif
     }
 
-    private void OnExport(object sender, RoutedEventArgs e)
+    private async void OnExport(object sender, RoutedEventArgs e)
     {
+        if (_isExporting || _isClosed || _isDocumentClosing)
+        {
+            return;
+        }
+
         var error = ViewModel.Validate();
         if (error is not null)
         {
@@ -223,12 +315,39 @@ public partial class ExportDialog : Window
             return;
         }
 
-        // 모델리스 창은 DialogResult을 설정할 수 없으므로 직접 내보낸 뒤 창을 닫는다.
-        if (LayerExporter.Commands.ExportLayersCommand.PerformExport(_doc, ViewModel))
+        _isExporting = true;
+        IsEnabled = false;
+        try
         {
-            Close();
+            // 모델리스 창은 DialogResult를 설정할 수 없으므로 직접 내보낸 뒤 창을 닫는다.
+            if (await LayerExporter.Commands.ExportLayersCommand.PerformExportAsync(_doc, ViewModel)
+                && !_isClosed)
+            {
+                Close();
+            }
+        }
+        catch (System.Exception ex)
+        {
+            if (!_isClosed && !_isDocumentClosing)
+            {
+                try
+                {
+                    _doc.Editor.WriteMessage($"\n[LayerExporter] 내보내기 실패: {ex.Message}\n");
+                }
+                catch
+                {
+                    // The document may have closed while the detached SHP data was written.
+                }
+            }
+        }
+        finally
+        {
+            _isExporting = false;
+            if (!_isClosed && !_isDocumentClosing)
+            {
+                IsEnabled = true;
+            }
         }
     }
-
     private void OnCancel(object sender, RoutedEventArgs e) => Close();
 }

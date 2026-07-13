@@ -28,7 +28,7 @@ public class ExportLayersCommand
             var layers = LayerService.GetLayers(doc.Database);
             if (layers.Count == 0)
             {
-                ed.WriteMessage("\n[LayerExporter] 도면에 레이어가 없습니다.\n");
+                TryWriteMessage(doc, "\n[LayerExporter] 도면에 레이어가 없습니다.\n");
                 return;
             }
 
@@ -51,7 +51,7 @@ public class ExportLayersCommand
         }
         catch (System.Exception ex)
         {
-            ed.WriteMessage($"\n[LayerExporter] 오류: {ex.Message}\n");
+            TryWriteMessage(doc, $"\n[LayerExporter] 오류: {ex.Message}\n");
         }
     }
 
@@ -59,98 +59,161 @@ public class ExportLayersCommand
     /// 다이얼로그의 "내보내기"에서 호출된다. 모델리스 컨텍스트이므로 문서를 잠그고 내보낸다.
     /// 성공적으로 1개 이상 내보냈으면 true(창을 닫는다), 아니면 false(창 유지).
     /// </summary>
-    public static bool PerformExport(Document doc, ExportViewModel vm)
+    public static async Task<bool> PerformExportAsync(Document doc, ExportViewModel vm)
     {
         var ed = doc.Editor;
         try
         {
+            Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection ids;
             using (doc.LockDocument())
             {
-                var ids = vm.IsObjectMode
-                    ? new Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection(vm.SelectedObjectIds.ToArray())
+                ids = vm.IsObjectMode
+                    ? new Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection(vm.SelectedObjectIds
+                        .Where(id => id.IsValid && !id.IsErased && id.Database == doc.Database)
+                        .ToArray())
                     : LayerService.CollectEntityIds(doc.Database, vm.SelectedLayerNames);
+            }
 
-                if (ids.Count == 0)
+            if (ids.Count == 0)
+            {
+                TryWriteMessage(doc, "\n[LayerExporter] 내보낼 객체가 없습니다.\n");
+                return false;
+            }
+
+            TryWriteMessage(doc, $"\n[LayerExporter] {ids.Count}개 객체를 내보냅니다.\n");
+
+            var selectedFormatCount = 0;
+            var successfulFormatCount = 0;
+
+            if (vm.ExportDxf)
+            {
+                selectedFormatCount++;
+                try
                 {
-                    ed.WriteMessage("\n[LayerExporter] 내보낼 객체가 없습니다.\n");
-                    return false;
+                    using (doc.LockDocument())
+                    {
+                        ExportDxf(doc, ids, vm, ed);
+                    }
+                    successfulFormatCount++;
                 }
-
-                ed.WriteMessage($"\n[LayerExporter] {ids.Count}개 객체를 내보냅니다.\n");
-
-                // DXF/SHP는 각각 또는 둘 다 선택 가능하며, 선택된 형식을 순차로 내보낸다.
-                if (vm.ExportDxf)
+                catch (System.Exception ex)
                 {
-                    ExportDxf(doc, ids, vm, ed);
+                    TryWriteMessage(doc, $"\n[LayerExporter] DXF 내보내기 실패: {ex.Message}\n");
                 }
+            }
 
-                if (vm.ExportShp)
+            if (vm.ExportShp)
+            {
+                selectedFormatCount++;
+                try
                 {
-                    ExportShp(doc, ids, vm, ed);
+                    await ExportShpAsync(doc, ids, vm, ed);
+                    successfulFormatCount++;
                 }
+                catch (System.Exception ex)
+                {
+                    TryWriteMessage(doc, $"\n[LayerExporter] SHP 내보내기 실패: {ex.Message}\n");
+                }
+            }
 
+            if (selectedFormatCount > 0 && successfulFormatCount == selectedFormatCount)
+            {
                 return true;
             }
+
+            if (successfulFormatCount > 0)
+            {
+                TryWriteMessage(doc,
+                    "[LayerExporter] 일부 형식만 완료되었습니다. 실패한 형식을 확인하고 다시 시도하세요.\n");
+            }
+            else
+            {
+                TryWriteMessage(doc, "[LayerExporter] 선택한 형식을 내보내지 못했습니다. 창을 유지합니다.\n");
+            }
+
+            return false;
         }
         catch (System.Exception ex)
         {
-            ed.WriteMessage($"\n[LayerExporter] 오류: {ex.Message}\n");
+            TryWriteMessage(doc, $"\n[LayerExporter] 오류: {ex.Message}\n");
             return false;
         }
     }
-
     private static void ExportDxf(Document doc, Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection ids,
         ExportViewModel vm, Editor ed)
     {
         var path = Path.Combine(vm.OutputFolder, vm.BaseName + ".dxf");
         DxfExportService.Export(doc.Database, ids, path);
-        ed.WriteMessage($"\n[LayerExporter] DXF 내보내기 완료: {ids.Count}개 객체 → {path}\n");
-        ed.WriteMessage("[LayerExporter] 참고: Civil 3D 전용 객체(선형·지표면 등)는 다른 CAD에서 프록시로 표시될 수 있습니다.\n");
+        TryWriteMessage(doc, $"\n[LayerExporter] DXF 내보내기 완료: {ids.Count}개 객체 → {path}\n");
+        TryWriteMessage(doc, "[LayerExporter] 참고: Civil 3D 전용 객체(선형·지표면 등)는 다른 CAD에서 프록시로 표시될 수 있습니다.\n");
     }
 
-    private static void ExportShp(Document doc, Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection ids,
-        ExportViewModel vm, Editor ed)
+    private static async Task ExportShpAsync(
+        Document doc,
+        Autodesk.AutoCAD.DatabaseServices.ObjectIdCollection ids,
+        ExportViewModel vm,
+        Editor ed)
     {
-        var crs = CoordinateSystemResolver.Resolve();
+        CrsResolution crs;
         var options = new ConversionOptions(vm.Tolerance, vm.ClosedPolylinesAsPolygons, vm.IncludeZ);
         var basePath = Path.Combine(vm.OutputFolder, vm.BaseName);
+        ShpExtractionResult extraction;
 
-        using var meter = new Autodesk.AutoCAD.Runtime.ProgressMeter();
-        meter.Start("SHP 내보내는 중");
-        meter.SetLimit(ids.Count);
-        try
+        using (var meter = new Autodesk.AutoCAD.Runtime.ProgressMeter())
         {
-            var summary = ShpExportService.Export(
-                doc.Database, ids, basePath, options, crs.EsriWkt,
-                () => meter.MeterProgress());
-
-            ed.WriteMessage($"\n[LayerExporter] SHP 내보내기 완료: 포인트 {summary.PointCount} / 라인 {summary.LineCount} / 폴리곤 {summary.PolygonCount}\n");
-            foreach (var file in summary.WrittenFiles)
+            meter.Start("SHP 내보내는 중");
+            meter.SetLimit(ids.Count);
+            try
             {
-                ed.WriteMessage($"  - {file}\n");
-            }
-
-            if (summary.PrjWritten)
-            {
-                ed.WriteMessage($"[LayerExporter] 좌표계 적용됨 ({crs.Code}, 출처: {crs.Source})\n");
-            }
-            else
-            {
-                ed.WriteMessage($"[LayerExporter] 경고: .prj 미생성 — {crs.Source}\n");
-            }
-
-            if (summary.Skipped.Count > 0)
-            {
-                ed.WriteMessage($"[LayerExporter] 변환 제외 {summary.Skipped.Count}개 객체:\n");
-                foreach (var group in summary.Skipped.GroupBy(s => s.Reason))
+                using (doc.LockDocument())
                 {
-                    ed.WriteMessage($"  - {group.Key}: {group.Count()}개\n");
+                    crs = CoordinateSystemResolver.Resolve();
+                    extraction = ShpExportService.Extract(
+                        doc.Database, ids, options, () => meter.MeterProgress());
                 }
             }
+            finally
+            {
+                meter.Stop();
+            }
         }
-        finally
+
+        var summary = await Task.Run(
+            () => ShpExportService.Write(basePath, extraction, crs.EsriWkt));
+
+        TryWriteMessage(doc, $"\n[LayerExporter] SHP 내보내기 완료: 포인트 {summary.PointCount} / 라인 {summary.LineCount} / 폴리곤 {summary.PolygonCount}\n");
+        foreach (var file in summary.WrittenFiles)
         {
-            meter.Stop();
+            TryWriteMessage(doc, $"  - {file}\n");
+        }
+
+        if (summary.PrjWritten)
+        {
+            TryWriteMessage(doc, $"[LayerExporter] 좌표계 적용됨 ({crs.Code}, 출처: {crs.Source})\n");
+        }
+        else
+        {
+            TryWriteMessage(doc, $"[LayerExporter] 경고: .prj 미생성 - {crs.Source}\n");
+        }
+
+        if (summary.Skipped.Count > 0)
+        {
+            TryWriteMessage(doc, $"[LayerExporter] 변환 제외 {summary.Skipped.Count}개 객체:\n");
+            foreach (var group in summary.Skipped.GroupBy(s => s.Reason))
+            {
+                TryWriteMessage(doc, $"  - {group.Key}: {group.Count()}개\n");
+            }
+        }
+    }
+    private static void TryWriteMessage(Document doc, string message)
+    {
+        try
+        {
+            doc.Editor.WriteMessage(message);
+        }
+        catch
+        {
+            // The originating document may close while detached SHP data is being written.
         }
     }
 }
