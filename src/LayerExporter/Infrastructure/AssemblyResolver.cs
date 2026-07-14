@@ -14,6 +14,12 @@ namespace LayerExporter.Infrastructure;
 public static class AssemblyResolver
 {
     private static bool _registered;
+    private static readonly string[] PrivateDependencyNames =
+    [
+        "NetTopologySuite",
+        "NetTopologySuite.Features",
+        "NetTopologySuite.IO.Esri.Shapefile",
+    ];
 
     public static void Register()
     {
@@ -22,12 +28,51 @@ public static class AssemblyResolver
             return;
         }
 
+        PreloadPrivateDependencies();
         _registered = true;
 #if NETFRAMEWORK
         AppDomain.CurrentDomain.AssemblyResolve += OnAssemblyResolve;
 #else
         AssemblyLoadContext.Default.Resolving += OnResolving;
 #endif
+    }
+
+    private static void PreloadPrivateDependencies()
+    {
+        var pluginDir = Path.GetDirectoryName(typeof(AssemblyResolver).Assembly.Location);
+        if (pluginDir is null)
+        {
+            return;
+        }
+
+        foreach (var dependencyName in PrivateDependencyNames)
+        {
+            if (AppDomain.CurrentDomain.GetAssemblies().Any(
+                    assembly => string.Equals(assembly.GetName().Name, dependencyName,
+                        StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            var candidate = Path.Combine(pluginDir, dependencyName + ".dll");
+            if (!File.Exists(candidate))
+            {
+                continue;
+            }
+
+            try
+            {
+#if NETFRAMEWORK
+                Assembly.LoadFrom(candidate);
+#else
+                AssemblyLoadContext.Default.LoadFromAssemblyPath(candidate);
+#endif
+            }
+            catch
+            {
+                // The normal resolving hook will make a later load attempt if needed.
+            }
+        }
     }
 
 #if NETFRAMEWORK
