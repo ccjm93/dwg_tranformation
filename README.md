@@ -49,6 +49,17 @@ dotnet test
 
 ## 설치
 
+**권장: 설치 파일**
+
+`tools\build-installer.ps1`를 실행하면 `installer\dist\LayerExporter-Setup.exe`가 생성됩니다.
+설치 파일은 Civil 3D / AutoCAD 2018~2027용 번들과 좌표계 라이브러리를 함께 설치합니다.
+플러그인이 처음 로드되면 좌표계 라이브러리를 Civil 3D에 자동 등록하며, 등록 후 Civil 3D를 다시 시작하면 적용됩니다.
+
+```powershell
+powershell -File tools\build-installer.ps1
+```
+
+
 **방법 1 — NETLOAD (간단)**
 
 1. `tools\build.ps1` 실행 후 Civil 3D에서 `NETLOAD` 명령 실행
