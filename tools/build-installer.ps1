@@ -1,6 +1,5 @@
 param(
-    [string]$Configuration = "Release",
-    [string]$CoordinateLibraryPath = ""
+    [string]$Configuration = "Release"
 )
 
 $ErrorActionPreference = "Stop"
@@ -8,10 +7,7 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $bundleRoot = Join-Path $repoRoot "deploy\LayerExporter.bundle"
 $payloadRoot = Join-Path $repoRoot "installer\payload"
 $stagingRoot = Join-Path $repoRoot "installer\staging"
-$defaultCoordinateLibraryPath = Join-Path $repoRoot "src\LayerExporter\Assets\CSLibrary.xml"
-if ([string]::IsNullOrWhiteSpace($CoordinateLibraryPath)) {
-    $CoordinateLibraryPath = $defaultCoordinateLibraryPath
-}
+$coordinateLibraryPath = Join-Path $repoRoot "src\LayerExporter\Assets\CSLibrary.xml"
 $payloadZip = Join-Path $payloadRoot "LayerExporter.bundle.zip"
 $installerProject = Join-Path $repoRoot "installer\LayerExporter.Installer.csproj"
 $distRoot = Join-Path $repoRoot "installer\dist"
@@ -24,16 +20,16 @@ if (-not $hasSdk) {
     $dotnet = $localDotnet
 }
 
-if (-not (Test-Path -LiteralPath $CoordinateLibraryPath)) {
-    throw "좌표계 라이브러리를 찾을 수 없습니다: $CoordinateLibraryPath"
+if (-not (Test-Path -LiteralPath $coordinateLibraryPath)) {
+    throw "좌표계 라이브러리를 찾을 수 없습니다: $coordinateLibraryPath"
 }
 
 & (Join-Path $PSScriptRoot "build.ps1") -All -Configuration $Configuration
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 foreach ($band in "2018", "2025", "2027") {
-    Copy-Item -LiteralPath $CoordinateLibraryPath -Destination (Join-Path $bundleRoot "Contents\$band\CSLibrary.xml") -Force
-    Copy-Item -LiteralPath $CoordinateLibraryPath -Destination (Join-Path $repoRoot "deploy\bin\$band\CSLibrary.xml") -Force
+    Copy-Item -LiteralPath $coordinateLibraryPath -Destination (Join-Path $bundleRoot "Contents\$band\CSLibrary.xml") -Force
+    Copy-Item -LiteralPath $coordinateLibraryPath -Destination (Join-Path $repoRoot "deploy\bin\$band\CSLibrary.xml") -Force
 }
 
 if (Test-Path -LiteralPath $stagingRoot) { Remove-Item -LiteralPath $stagingRoot -Recurse -Force }
