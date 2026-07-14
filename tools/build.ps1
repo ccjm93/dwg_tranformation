@@ -9,10 +9,6 @@
 $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $project = Join-Path $repoRoot "src\LayerExporter\LayerExporter.csproj"
-$coordinateLibrary = Join-Path $repoRoot "src\LayerExporter\Assets\CSLibrary.xml"
-if (-not (Test-Path -LiteralPath $coordinateLibrary)) {
-    throw "좌표계 라이브러리 파일을 찾을 수 없습니다: $coordinateLibrary"
-}
 
 # .NET SDK 탐지: PATH의 dotnet에 SDK가 없으면 사용자 폴더 설치본(%LOCALAPPDATA%\Microsoft\dotnet)을 사용한다
 $dotnet = "dotnet"
@@ -64,8 +60,10 @@ foreach ($version in $targets) {
     $bundleDir = Join-Path $repoRoot "deploy\LayerExporter.bundle\Contents\$($band.Band)"
     New-Item -ItemType Directory -Force $bundleDir | Out-Null
     Copy-Item -Path (Join-Path $outDir "*") -Destination $bundleDir -Recurse -Force
-    Copy-Item -LiteralPath $coordinateLibrary -Destination (Join-Path $deployDir "CSLibrary.xml") -Force
-    Copy-Item -LiteralPath $coordinateLibrary -Destination (Join-Path $bundleDir "CSLibrary.xml") -Force
+    # CSLibrary.xml은 csproj의 CopyToOutputDirectory로 출력 루트에 포함되어 위 복사로 함께 배포된다
+    if (-not (Test-Path (Join-Path $bundleDir "CSLibrary.xml"))) {
+        Write-Error "CSLibrary.xml이 빌드 출력에 없습니다. LayerExporter.csproj의 복사 설정을 확인하세요."
+    }
 
     Write-Host ""
     Write-Host "배포 완료 ($($band.Label)):"

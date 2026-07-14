@@ -21,6 +21,11 @@ public static class AssemblyResolver
         "NetTopologySuite.IO.Esri.Shapefile",
     ];
 
+    /// <summary>이름이 일치하는 어셈블리가 현재 AppDomain에 로드되어 있는지 확인한다.</summary>
+    public static bool IsAssemblyLoaded(string assemblyName) =>
+        AppDomain.CurrentDomain.GetAssemblies().Any(assembly =>
+            string.Equals(assembly.GetName().Name, assemblyName, StringComparison.OrdinalIgnoreCase));
+
     public static void Register()
     {
         if (_registered)
@@ -47,9 +52,7 @@ public static class AssemblyResolver
 
         foreach (var dependencyName in PrivateDependencyNames)
         {
-            if (AppDomain.CurrentDomain.GetAssemblies().Any(
-                    assembly => string.Equals(assembly.GetName().Name, dependencyName,
-                        StringComparison.OrdinalIgnoreCase)))
+            if (IsAssemblyLoaded(dependencyName))
             {
                 continue;
             }

@@ -159,7 +159,7 @@ public partial class ExportDialog : Window
     /// </summary>
     private void OnAssignCoordinateSystem(object sender, RoutedEventArgs e)
     {
-        SendCommand(Crs.CoordinateSystemResolver.IsCivil3DAvailable()
+        SendCommand(Crs.CoordinateSystemResolver.IsMapCsAssignAvailable()
             ? "_.MAPCSASSIGN "
             : "_.GEOGRAPHICLOCATION ");
     }

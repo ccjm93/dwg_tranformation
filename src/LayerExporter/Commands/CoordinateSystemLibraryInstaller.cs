@@ -76,9 +76,14 @@ internal static class CoordinateSystemLibraryInstaller
 
         TryWriteMessage(document,
             "\n[LayerExporter] 좌표계 라이브러리를 처음 설치합니다. 완료 후 Civil 3D를 다시 시작하면 사용할 수 있습니다.\n");
+        // "_." 접두사: 로컬라이즈(한국어) 빌드에서도 전역 명령명으로 해석되고 재정의를 무시한다.
+        // "_Yes"의 "_" 접두사: 덮어쓰기 확인 키워드를 언어 독립적으로 매칭한다.
+        // 마지막 repeat: 버전에 따라 프롬프트가 더 남는 경우 Enter로 종료시켜
+        // 명령이 입력 대기 상태로 남지 않게 한다(명령이 이미 끝났으면 아무것도 안 함).
         var lispPath = libraryPath.Replace("\\", "\\\\").Replace("\"", "\\\"");
         document.SendStringToExecute(
-            $"(command \"{ImportCommand}\" \"{lispPath}\" \"Yes\" \"\")\n",
+            $"(progn (command \"_.{ImportCommand}\" \"{lispPath}\" \"_Yes\" \"\") " +
+            "(repeat 2 (if (> (getvar \"CMDACTIVE\") 0) (command \"\"))))\n",
             true, false, true);
     }
 
@@ -114,9 +119,11 @@ internal static class CoordinateSystemLibraryInstaller
         ClearPendingImport();
     }
 
+    // LISP (command ...) 경유 실행 시 이벤트의 명령명이 "_MAPCSLIBRARYIMPORT"처럼
+    // 접두사가 붙은 형태로 보고될 수 있어 완전 일치 대신 포함 여부로 매칭한다.
     private static bool IsPendingImport(object sender, CommandEventArgs e) =>
         importQueued && ReferenceEquals(sender, pendingDocument)
-        && string.Equals(e.GlobalCommandName, ImportCommand, StringComparison.OrdinalIgnoreCase);
+        && e.GlobalCommandName?.IndexOf(ImportCommand, StringComparison.OrdinalIgnoreCase) >= 0;
 
     private static void ClearPendingImport()
     {

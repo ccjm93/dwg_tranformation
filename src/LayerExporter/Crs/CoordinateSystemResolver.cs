@@ -1,5 +1,6 @@
 using System.Reflection;
 using LayerExporter.Core.Crs;
+using LayerExporter.Infrastructure;
 
 namespace LayerExporter.Crs;
 
@@ -15,10 +16,31 @@ public sealed record CrsResolution(string? EsriWkt, string? Code, string Source)
 public static class CoordinateSystemResolver
 {
     /// <summary>
-    /// 현재 프로세스가 Civil 3D(=Map 3D 포함)인지 여부. AeccDbMgd 로드 여부로 판정한다.
-    /// MAPCSASSIGN(Map 전용 명령) 사용 가능 여부의 프록시로 쓰인다.
+    /// MAPCSASSIGN 명령을 제공하는 Civil 3D 또는 AutoCAD Map 3D인지 확인한다.
+    /// 명령 존재 여부를 직접 질의하는 것이 1차 판정이고, 어셈블리 로드 검사는
+    /// 명령이 아직 등록되지 않았을 수 있는(디맨드 로드 이전) 경우의 폴백이다.
+    /// AeccDbMgd(Civil 3D)는 FindCivilApplicationType()이 담당한다.
     /// </summary>
-    public static bool IsCivil3DAvailable() => FindCivilApplicationType() is not null;
+    public static bool IsMapCsAssignAvailable()
+    {
+        return IsCommandDefined("MAPCSASSIGN")
+            || AssemblyResolver.IsAssemblyLoaded("AcMapMgd")
+            || AssemblyResolver.IsAssemblyLoaded("Autodesk.Gis.Map.Platform")
+            || FindCivilApplicationType() is not null;
+    }
+
+    private static bool IsCommandDefined(string globalCommandName)
+    {
+        try
+        {
+            return Autodesk.AutoCAD.Internal.Utils.IsCommandDefined(globalCommandName);
+        }
+        catch
+        {
+            // 순수 AutoCAD 외 환경 또는 API 미지원 버전 — 어셈블리 검사 폴백에 맡긴다
+            return false;
+        }
+    }
 
     public static string? GetDrawingCoordinateSystemCode()
     {

@@ -20,6 +20,9 @@
   <ItemGroup>
     <!-- 기본 None 글롭과 중복 방지 (미리보기 png는 빌드에 포함하지 않음) -->
     <None Remove="Assets\*.png" />
+    <!-- 좌표계 라이브러리: 출력 루트에 CSLibrary.xml로 복사한다.
+         빌드 스크립트가 출력 폴더 전체를 deploy/번들로 복사하므로 여기가 단일 원천이다. -->
+    <None Update="Assets\CSLibrary.xml" CopyToOutputDirectory="PreserveNewest" TargetPath="CSLibrary.xml" />
     <EmbeddedResource Include="Assets\icon32.png">
       <LogicalName>LayerExporter.Assets.icon32.png</LogicalName>
     </EmbeddedResource>
