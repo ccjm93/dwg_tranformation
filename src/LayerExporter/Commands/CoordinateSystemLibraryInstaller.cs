@@ -76,8 +76,10 @@ internal static class CoordinateSystemLibraryInstaller
 
         TryWriteMessage(document,
             "\n[LayerExporter] 좌표계 라이브러리를 처음 설치합니다. 완료 후 Civil 3D를 다시 시작하면 사용할 수 있습니다.\n");
-        var escapedPath = libraryPath.Replace("\"", "\"\"");
-        document.SendStringToExecute($"_.{ImportCommand}\n\"{escapedPath}\"\n_Y\n", true, false, true);
+        var lispPath = libraryPath.Replace("\\", "\\\\").Replace("\"", "\\\"");
+        document.SendStringToExecute(
+            $"(command \"{ImportCommand}\" \"{lispPath}\" \"Yes\" \"\")\n",
+            true, false, true);
     }
 
     private static void OnImportCommandEnded(object sender, CommandEventArgs e)
