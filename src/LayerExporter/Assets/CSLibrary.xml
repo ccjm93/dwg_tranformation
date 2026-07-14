@@ -1,7 +1,4 @@
-Exit code: 0
-Wall time: 0.3 seconds
-Output:
-<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+﻿<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <Dictionary version="1.0" xmlns="http://www.osgeo.org/mapguide/coordinatesystem">
 
   <ProjectedCoordinateSystem id="KOREA_BESSEL_125TM">
@@ -704,4 +701,3 @@ Output:
   </Alias>
 
 </Dictionary>
-
